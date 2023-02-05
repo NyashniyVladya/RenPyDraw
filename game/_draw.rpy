@@ -13,7 +13,7 @@ init python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 0, 0)
+    VERSION = (1, 0, 1)
 
     class Point(object):
 
@@ -82,7 +82,7 @@ init python in draw_logic:
                 background = "#888"
 
             if transform_prop:
-                background = Transform(background, **transform_prop)
+                background = store.Transform(background, **transform_prop)
 
             draw_object = cls(background)
 
@@ -259,15 +259,16 @@ init python in draw_logic:
                 return
 
             w, h = self.__size
-            if not ((0 <= x < w) and (0 <= y < h)):
-                return
+            in_area = False
+            if (0 <= x < w) and (0 <= y < h):
+                in_area = True
 
-            if ev.type == pygame.MOUSEMOTION:
+            if in_area and (ev.type == pygame.MOUSEMOTION):
                 if self.__is_pressed:
                     self.add_point(x, y, st)
                     raise renpy.IgnoreEvent()
 
-            elif ev.type == pygame.MOUSEBUTTONDOWN:
+            elif in_area and (ev.type == pygame.MOUSEBUTTONDOWN):
                 if ev.button == self.DRAW_BUTTON:
                     self.__is_pressed = True
                     self.add_point(x, y, st)
@@ -277,7 +278,8 @@ init python in draw_logic:
                 if ev.button == self.DRAW_BUTTON:
                     self.__is_pressed = False
                     self.__active_curve = None
-                    raise renpy.IgnoreEvent()
+                    if in_area:
+                        raise renpy.IgnoreEvent()
 
         def per_interact(self):
             self.__is_pressed = False
@@ -514,4 +516,8 @@ screen _draw_screen(draw_object):
                 xminimum circle_size[0]
                 textbutton _("Clear all"):
                     action Function(draw_object.clear_all)
-        add draw_object
+        frame:
+            xfill True
+            yfill True
+            add draw_object:
+                align (.5, .5)
