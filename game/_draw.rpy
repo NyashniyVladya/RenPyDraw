@@ -13,6 +13,8 @@ init python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
+    VERSION = (1, 0, 0)
+
     class Point(object):
 
         __author__ = "Vladya"
