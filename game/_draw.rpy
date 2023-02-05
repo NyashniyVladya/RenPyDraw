@@ -13,7 +13,7 @@ init python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 0, 1)
+    VERSION = (1, 0, 2)
 
     class Point(object):
 
@@ -214,6 +214,7 @@ init python in draw_logic:
             if self.__active_curve is None:
                 self.__active_curve = []
                 self.__curves.append(self.__active_curve)
+                self.__delete_log.clear()
             self.__active_curve.append(point)
             renpy.redraw(self, .0)
 

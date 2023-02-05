@@ -159,3 +159,4 @@ log.txt
 *.rpyc
 *.rpymc
 errors.txt
+Draw *.png
