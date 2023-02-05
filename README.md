@@ -10,6 +10,8 @@ __________________
 Она принимает опциональный аргумент - `background`, который будет "холстом" для рисунка.
 Если аргумент не передан, в качестве фона используется заливка сервым цветом.
 
+Функция возвращает `Displayable` объект рисунка на прозрачном фоне.
+
 Так же принимаются параметры класса `Transform`, они будут применены к `background`, в случае их присутствия.
 
 __________________
@@ -21,6 +23,8 @@ To use, copy the file `_draw.rpy` into your project and work with the namespace 
 The main function to use is `draw_logic.Draw.main`.
 It takes an optional argument, `background`, which will be the "canvas" for the drawing.
 If the argument is not passed, a gray fill is used as the background.
+
+The function returns an object of class `Displayable`, which is a picture on a transparent background.
 
 It also accepts parameters of the `Transform` class, and they will be applied to the `background`, if they are present.
 
