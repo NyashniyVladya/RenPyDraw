@@ -13,7 +13,7 @@ init python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 0, 2)
+    VERSION = (1, 0, 3)
 
     class Point(object):
 
@@ -182,6 +182,14 @@ init python in draw_logic:
         def picker(self):
             return self.__picker
 
+        @property
+        def width(self):
+            return self.__width
+
+        @width.setter
+        def width(self, new_width):
+            self.__width = int(new_width)
+
         def draw_all(self, canvas):
 
             for curve in self.__curves:
@@ -249,7 +257,7 @@ init python in draw_logic:
             self.__color = renpy.color.Color(color)
 
         def set_width(self, width):
-            self.__width = width
+            self.width = width
 
         def visit(self):
             return [self.__background]
@@ -267,7 +275,6 @@ init python in draw_logic:
             if in_area and (ev.type == pygame.MOUSEMOTION):
                 if self.__is_pressed:
                     self.add_point(x, y, st)
-                    raise renpy.IgnoreEvent()
 
             elif in_area and (ev.type == pygame.MOUSEBUTTONDOWN):
                 if ev.button == self.DRAW_BUTTON:
@@ -279,8 +286,6 @@ init python in draw_logic:
                 if ev.button == self.DRAW_BUTTON:
                     self.__is_pressed = False
                     self.__active_curve = None
-                    if in_area:
-                        raise renpy.IgnoreEvent()
 
         def per_interact(self):
             self.__is_pressed = False
@@ -425,8 +430,9 @@ init python in draw_logic:
                 return
 
             w, h = self.__size
-            if not ((0 <= x < w) and (0 <= y < h)):
-                return
+            in_area = False
+            if (0 <= x < w) and (0 <= y < h):
+                in_area = True
 
             r, g, b, _alpha = self._get_pixel(x, y)
 
@@ -434,9 +440,8 @@ init python in draw_logic:
                 if self.__is_pressed:
                     self.set_coor(x, y)
                     self._redraw()
-                    raise renpy.IgnoreEvent()
 
-            elif ev.type == pygame.MOUSEBUTTONDOWN:
+            elif in_area and (ev.type == pygame.MOUSEBUTTONDOWN):
                 if ev.button == 1:
                     if _alpha:
                         self.__is_pressed = True
@@ -448,7 +453,6 @@ init python in draw_logic:
                 if ev.button == 1:
                     self.__is_pressed = False
                     self._redraw()
-                    raise renpy.IgnoreEvent()
 
         def visit(self):
             return [self.color_circle]
@@ -482,22 +486,44 @@ screen _draw_screen(draw_object):
 
     frame:
         has hbox
+
         frame:
             has vbox
-            spacing 15
+            spacing 10
+
             frame:
-                has hbox
-                vbar:
-                    ymaximum circle_size[1]
-                    value FieldValue(
-                        draw_object.picker,
-                        "brightness",
-                        range=2.,
-                        offset=(-1.),
-                        step=.001
-                    )
-                null width 5
-                add draw_object.picker
+                has vbox
+                first_spacing 10
+                spacing 5
+                add draw_object.picker:
+                    align (.5, .5)
+
+                frame:
+                    has vbox
+                    label _("Brightness")
+                    bar:
+                        xmaximum circle_size[0]
+                        value FieldValue(
+                            draw_object.picker,
+                            "brightness",
+                            range=2.,
+                            offset=(-1.),
+                            step=.001
+                        )
+
+                frame:
+                    has vbox
+                    label _("Width")
+                    bar:
+                        xmaximum circle_size[0]
+                        value FieldValue(
+                            draw_object,
+                            "width",
+                            range=100,
+                            offset=1,
+                            step=.001
+                        )
+
             frame:
                 has vbox
                 xminimum circle_size[0]
@@ -505,6 +531,7 @@ screen _draw_screen(draw_object):
                     action Function(draw_object._disable)
                 textbutton _("Save as .png"):
                     action Function(draw_object.save, True)
+
             frame:
                 has vbox
                 xminimum circle_size[0]
@@ -512,11 +539,13 @@ screen _draw_screen(draw_object):
                     action Function(draw_object.back)
                 textbutton _("Forward"):
                     action Function(draw_object.forward)
+
             frame:
                 has vbox
                 xminimum circle_size[0]
                 textbutton _("Clear all"):
                     action Function(draw_object.clear_all)
+
         frame:
             xfill True
             yfill True
