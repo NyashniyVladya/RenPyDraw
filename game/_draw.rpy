@@ -10,10 +10,11 @@ init python in draw_logic:
     from os import path
 
     SAVE_FOLDER = path.abspath(renpy.config.basedir)
+    COLOR_CIRCLE = "colors.png"
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 0, 3)
+    VERSION = (1, 0, 4)
 
     class Point(object):
 
@@ -323,8 +324,6 @@ init python in draw_logic:
 
         nosave = ["_callback"]
 
-        COLOR_CIRCLE = Draw._get_displayable("colors.png")
-
         def __init__(self, pick_color_callback=None, **properties):
 
             super(ColorPicker, self).__init__(**properties)
@@ -355,7 +354,7 @@ init python in draw_logic:
         @property
         def color_circle(self):
             return renpy.display.im.MatrixColor(
-                self.COLOR_CIRCLE,
+                COLOR_CIRCLE,
                 renpy.display.im.matrix.brightness(self.brightness)
             )
 
