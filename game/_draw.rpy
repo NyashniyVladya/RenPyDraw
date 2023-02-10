@@ -14,7 +14,7 @@ init python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 0, 4)
+    VERSION = (1, 0, 5)
 
     class Point(object):
 
@@ -92,13 +92,6 @@ init python in draw_logic:
             renpy.mode("screen")
             renpy.show_screen(_screen_name, draw_object, _transient=True)
             roll_forward = renpy.roll_forward_info()
-            can_roll_forward = renpy.display.screen.get_screen_roll_forward(
-                _screen_name
-            )
-            if can_roll_forward is None:
-                can_roll_forward = renpy.config.call_screen_roll_forward
-            if not can_roll_forward:
-                roll_forward = None
 
             try:
                 rv = renpy.ui.interact(
