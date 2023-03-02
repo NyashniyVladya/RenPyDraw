@@ -2,11 +2,10 @@
 init -10 python in draw_logic:
 
     import os
-    import io
+    import re
     import math
     import hashlib
     import store
-    import enum
     import pygame_sdl2 as pygame
     from os import path
 
@@ -16,7 +15,7 @@ init -10 python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 2, 0)
+    VERSION = (1, 2, 1)
 
 
     class _DrawGallery(store.Gallery):
@@ -47,7 +46,8 @@ init -10 python in draw_logic:
                 images.append(pic)
 
                 self.button(name)
-                self.image(*images)
+                self.image(*map(Draw._get_displayable, images))
+                self.transform(store.Transform(align=(.5, .5)))
 
         @staticmethod
         def _get_pictures(update=True):
@@ -75,11 +75,23 @@ init -10 python in draw_logic:
                         break
                     _dir = path.dirname(_dir)
 
+        def _get_button_names(self):
+
+            def _key(name):
+                result = re.search(r"\d+", name)
+                if not result:
+                    return 0
+                return int(result.group())
+
+            return tuple(sorted(self.buttons.keys(), key=_key))
+
+
         def get_buttons(self):
 
             zoom_size = float(renpy.config.screen_width) * .15
-            for name, button in self.buttons.items():
+            for name in self._get_button_names():
 
+                button = self.buttons[name]
                 disp = button.images[0].displayables[-1]
 
                 w, _h = map(float, Draw._get_size(disp))
@@ -87,9 +99,8 @@ init -10 python in draw_logic:
 
                 disp = store.Transform(disp, zoom=zoom)
 
-                yield self.make_button(name, disp)
+                yield self.make_button(name, disp, align=(.5, .5))
 
-    draw_gallery = _DrawGallery()
 
     class Point(object):
 
@@ -123,12 +134,13 @@ init -10 python in draw_logic:
         def width(self):
             return self.__width
 
-    class ActionRequest(enum.Flag):
 
-        NOTIFY = enum.auto()
-        SAVE = enum.auto()
-        ADD_TO_GALLERY = enum.auto()
-        ADD_REF_TO_GALLERY = enum.auto()
+    class ActionRequest(object):
+
+        NOTIFY = 0b0001
+        SAVE = 0b0010
+        ADD_TO_GALLERY = 0b0100
+        ADD_REF_TO_GALLERY = 0b1000
 
 
     class Draw(renpy.Displayable):
@@ -659,6 +671,8 @@ init -10 python in draw_logic:
                 canvas.circle(self.current_color, (x, y), 3)
 
             return result
+
+    draw_gallery = _DrawGallery()
 
     renpy.config.allow_underfull_grids = True  # Для пополняемой галереи.
 
