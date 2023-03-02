@@ -16,7 +16,7 @@ init -10 python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 1, 1)
+    VERSION = (1, 1, 2)
 
 
     class _DrawGallery(store.Gallery):
@@ -77,8 +77,7 @@ init -10 python in draw_logic:
 
         @staticmethod
         def get_size(disp):
-            disp = renpy.displayable(disp)
-            assert isinstance(disp, renpy.display.core.Displayable)
+            disp = Draw._get_displayable(disp)
             rend = renpy.display.render.render_for_size(
                 disp,
                 renpy.config.screen_width,
@@ -635,6 +634,16 @@ init -10 python in draw_logic:
             return result
 
     renpy.config.allow_underfull_grids = True  # Для пополняемой галереи.
+
+init 150 python in draw_logic:
+
+    try:
+        _circle = Draw._get_displayable(COLOR_CIRCLE)
+        _circle.load()
+    except Exception:
+        COLOR_CIRCLE = "_placeholder/girl.png"
+    else:
+        del(_circle)
 
 
 screen _draw_screen(draw_object):
