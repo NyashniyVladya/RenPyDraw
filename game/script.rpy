@@ -1,11 +1,4 @@
 ﻿
-init python:
-
-    draw_logic.COLOR_CIRCLE = im.MatrixColor(
-        draw_logic.COLOR_CIRCLE,
-        im.matrix.colorize("#FF0000", "#E34234")
-    )
-
 label start:
     scene expression "#fff"
     "Let's draw!"

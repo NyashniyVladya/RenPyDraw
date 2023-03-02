@@ -309,6 +309,8 @@ screen navigation():
 
         textbutton _("Preferences") action ShowMenu("preferences")
 
+        textbutton _("Draw gallery") action ShowMenu("draw_gallery")
+
         if _in_replay:
 
             textbutton _("End Replay") action EndReplay(confirm=True)
@@ -403,6 +405,16 @@ style main_menu_title:
 style main_menu_version:
     properties gui.text_properties("version")
 
+screen draw_gallery():
+
+    tag menu
+
+    use game_menu(_("Draw Gallery"), scroll="viewport"):
+        vpgrid:
+            xfill True
+            cols 3
+            for btn in draw_logic.draw_gallery.get_buttons():
+                add btn
 
 ## Game Menu screen ############################################################
 ##

@@ -1,20 +1,109 @@
 ﻿
-init python in draw_logic:
+init -10 python in draw_logic:
 
     import os
     import io
     import math
     import hashlib
     import store
+    import enum
     import pygame_sdl2 as pygame
     from os import path
 
     SAVE_FOLDER = path.abspath(renpy.config.basedir)
+    GALLERY_REL_FOLDER = "_draw"
     COLOR_CIRCLE = "colors.png"
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 0, 5)
+    VERSION = (1, 1, 0)
+
+
+    class _DrawGallery(store.Gallery):
+
+        __author__ = "Vladya"
+
+        BACKGROUND = None
+
+        def __init__(self):
+
+            super(_DrawGallery, self).__init__()
+            self.update_pictures()
+
+        def update_pictures(self):
+
+            for pic in self._get_pictures():
+
+                name = pic.replace('/', '_')
+                name = name.replace(' ', '_')
+                name = name.replace('.', '_')
+
+                if name in self.buttons:
+                    continue
+
+                images = []
+                if self.BACKGROUND:
+                    images.append(self.BACKGROUND)
+                images.append(pic)
+
+                self.button(name)
+                self.image(*images)
+
+        @staticmethod
+        def _get_pictures(update=True):
+
+            if update:
+                renpy.loader.cleardirfiles()
+
+            _fold = path.normpath(GALLERY_REL_FOLDER)
+
+            for renpy_fn in renpy.list_files():
+
+                fn = path.normpath(renpy_fn)
+                _fn, ext = path.splitext(fn)
+                ext = ext.strip().lower()
+
+                if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+                    continue
+
+                _dir = path.dirname(fn)
+                while True:
+                    if _dir == _fold:
+                        yield renpy_fn
+                        break
+                    if not _dir:
+                        break
+                    _dir = path.dirname(_dir)
+
+        @staticmethod
+        def get_size(disp):
+            disp = renpy.displayable(disp)
+            assert isinstance(disp, renpy.display.core.Displayable)
+            rend = renpy.display.render.render_for_size(
+                disp,
+                renpy.config.screen_width,
+                renpy.config.screen_height,
+                .0,
+                .0
+            )
+            return tuple(map(float, rend.get_size()))
+
+
+        def get_buttons(self):
+
+            zoom_size = float(renpy.config.screen_width) * .15
+            for name, button in self.buttons.items():
+
+                disp = button.images[0].displayables[-1]
+
+                w, _h = self.get_size(disp)
+                zoom = zoom_size / w
+
+                disp = store.Transform(disp, zoom=zoom)
+
+                yield self.make_button(name, disp)
+
+    draw_gallery = _DrawGallery()
 
     class Point(object):
 
@@ -48,15 +137,21 @@ init python in draw_logic:
         def width(self):
             return self.__width
 
+    class ActionRequest(enum.Flag):
+
+        NOTIFY = enum.auto()
+        SAVE = enum.auto()
+        ADD_TO_GALLERY = enum.auto()
+
 
     class Draw(renpy.Displayable):
 
         __author__ = "Vladya"
 
         DRAW_BUTTON = 1
-        _notify = "notify"
 
-        def __init__(self, background, **properties):
+
+        def __init__(self, background, reference=None, **properties):
 
             super(Draw, self).__init__(**properties)
 
@@ -70,14 +165,20 @@ init python in draw_logic:
             self.__color = renpy.color.Color("#000")
             self.__width = 20
 
+            if reference is not None:
+                self.__reference = self._get_displayable(reference)
+            else:
+                self.__reference = None
+            self.__show_reference = False
+
             self.__size = None
-            self.__save_request = False
+            self.__action_request = False
             self.__end_interact_request = False
 
             self.__picker = ColorPicker(self.set_color)
 
         @classmethod
-        def main(cls, background=None, **transform_prop):
+        def main(cls, background=None, reference=None, **transform_prop):
 
             if background is None:
                 background = "#888"
@@ -85,7 +186,7 @@ init python in draw_logic:
             if transform_prop:
                 background = store.Transform(background, **transform_prop)
 
-            draw_object = cls(background)
+            draw_object = cls(background, reference)
 
             _screen_name = "_draw_screen"
 
@@ -136,14 +237,17 @@ init python in draw_logic:
             return tuple(map(int, rend.get_size()))
 
         @staticmethod
-        def _save_canvas(canvas):
+        def _save_canvas(canvas, folder=None):
+
+            if folder is None:
+                folder = SAVE_FOLDER
 
             canvas_surf = canvas.get_surface()
             _counter = 1
             while True:
                 fn = path.abspath(
                     path.join(
-                        SAVE_FOLDER,
+                        folder,
                         "{0} {1}{2}".format(DRAW_SAVE_NAME, _counter, DRAW_EXT)
                     )
                 )
@@ -159,6 +263,15 @@ init python in draw_logic:
             return fn
 
         @classmethod
+        def add_canvas_in_gallery(cls, canvas):
+            fold = path.abspath(
+                path.join(renpy.config.gamedir, GALLERY_REL_FOLDER)
+            )
+            fn = cls._save_canvas(canvas, fold)
+            draw_gallery.update_pictures()
+            return fn
+
+        @classmethod
         def get_canvas_as_disp(cls, canvas):
 
             fn = cls._save_canvas(canvas)
@@ -171,6 +284,19 @@ init python in draw_logic:
                 _data,
                 "{0}{1}".format(_hash.hexdigest(), DRAW_EXT)
             )
+
+        @property
+        def reference(self):
+            return self.__reference
+
+        @property
+        def reference_switcher(self):
+            return self.__show_reference
+
+        @reference_switcher.setter
+        def reference_switcher(self, new_value):
+            self.__show_reference = bool(new_value)
+            renpy.redraw(self, .0)
 
         @property
         def picker(self):
@@ -220,8 +346,22 @@ init python in draw_logic:
             self.__active_curve.append(point)
             renpy.redraw(self, .0)
 
+        def add_in_gallery(self, notify=False):
+
+            rq = ActionRequest.ADD_TO_GALLERY
+            if notify:
+                rq |= ActionRequest.NOTIFY
+
+            self.__action_request = rq
+            renpy.redraw(self, .0)
+
         def save(self, notify=False):
-            self.__save_request = (self._notify if notify else True)
+
+            rq = ActionRequest.SAVE
+            if notify:
+                rq |= ActionRequest.NOTIFY
+
+            self.__action_request = rq
             renpy.redraw(self, .0)
 
         def back(self):
@@ -294,6 +434,13 @@ init python in draw_logic:
             result = renpy.Render(w, h)
             result.blit(back, (0, 0))
 
+            if self.reference and self.reference_switcher:
+                rend = renpy.render(self.reference, *rend_args)
+                x = (float(result.width) * .5) - (float(rend.width) * .5)
+                y = (float(result.height) * .5) - (float(rend.height) * .5)
+                x, y = map(int, (x, y))
+                result.blit(rend, (x, y))
+
             canvas = result.canvas()
             self.draw_all(canvas)
 
@@ -302,11 +449,19 @@ init python in draw_logic:
                 disp = self.get_canvas_as_disp(canvas)
                 renpy.end_interaction(disp)
 
-            if self.__save_request:
-                fn = self._save_canvas(canvas)
-                if self.__save_request == self._notify:
-                    renpy.notify(_("Saved draw as \"{0}\"").format(fn))
-                self.__save_request = False
+            if self.__action_request:
+
+                if self.__action_request & ActionRequest.SAVE:
+                    fn = self._save_canvas(canvas)
+                    if self.__action_request & ActionRequest.NOTIFY:
+                        renpy.notify(_("Saved draw as \"{0}\"").format(fn))
+
+                if self.__action_request & ActionRequest.ADD_TO_GALLERY:
+                    self.add_canvas_in_gallery(canvas)
+                    if self.__action_request & ActionRequest.NOTIFY:
+                        renpy.notify(_("A draw added in gallery."))
+
+                self.__action_request = None
 
             return result
 
@@ -469,6 +624,8 @@ init python in draw_logic:
 
             return result
 
+    renpy.config.allow_underfull_grids = True  # Для пополняемой галереи.
+
 
 screen _draw_screen(draw_object):
 
@@ -523,6 +680,11 @@ screen _draw_screen(draw_object):
                     action Function(draw_object._disable)
                 textbutton _("Save as .png"):
                     action Function(draw_object.save, True)
+                textbutton _("Add in gallery"):
+                    action Function(draw_object.add_in_gallery, True)
+                if draw_object.reference:
+                    textbutton (_("Hide reference") if draw_object.reference_switcher else _("Show reference")):
+                        action ToggleField(draw_object, "reference_switcher", True, False)
 
             frame:
                 has vbox

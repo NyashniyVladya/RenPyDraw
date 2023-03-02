@@ -160,3 +160,4 @@ log.txt
 *.rpymc
 errors.txt
 Draw *.png
+game/_draw/*
