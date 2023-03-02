@@ -16,7 +16,7 @@ init -10 python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 1, 3)
+    VERSION = (1, 2, 0)
 
 
     class _DrawGallery(store.Gallery):
@@ -128,6 +128,7 @@ init -10 python in draw_logic:
         NOTIFY = enum.auto()
         SAVE = enum.auto()
         ADD_TO_GALLERY = enum.auto()
+        ADD_REF_TO_GALLERY = enum.auto()
 
 
     class Draw(renpy.Displayable):
@@ -209,8 +210,11 @@ init -10 python in draw_logic:
 
             return rv
 
-        def _disable(self):
-            self.__end_interact_request = True
+        def _disable(self, return_reference=False):
+            if return_reference and self.reference:
+                self.__end_interact_request = self.reference
+            else:
+                self.__end_interact_request = True
             renpy.redraw(self, .0)
 
         @staticmethod
@@ -233,12 +237,16 @@ init -10 python in draw_logic:
             return tuple(map(int, rend.get_size()))
 
         @staticmethod
-        def _save_canvas(canvas, folder=None):
+        def _save_canvas(canvas, folder=None, as_surf=False):
 
             if folder is None:
                 folder = SAVE_FOLDER
 
-            canvas_surf = canvas.get_surface()
+            if as_surf:
+                canvas_surf = canvas
+            else:
+                canvas_surf = canvas.get_surface()
+
             _counter = 1
             while True:
                 fn = path.abspath(
@@ -264,6 +272,16 @@ init -10 python in draw_logic:
                 path.join(renpy.config.gamedir, GALLERY_REL_FOLDER)
             )
             fn = cls._save_canvas(canvas, fold)
+            draw_gallery.update_pictures()
+            return fn
+
+        @classmethod
+        def add_reference_in_gallery(cls, reference):
+            fold = path.abspath(
+                path.join(renpy.config.gamedir, GALLERY_REL_FOLDER)
+            )
+            surf = renpy.display.im.load_surface(reference)
+            fn = cls._save_canvas(surf, fold, as_surf=True)
             draw_gallery.update_pictures()
             return fn
 
@@ -345,6 +363,15 @@ init -10 python in draw_logic:
         def add_in_gallery(self, notify=False):
 
             rq = ActionRequest.ADD_TO_GALLERY
+            if notify:
+                rq |= ActionRequest.NOTIFY
+
+            self.__action_request = rq
+            renpy.redraw(self, .0)
+
+        def add_ref_in_gallery(self, notify=False):
+
+            rq = ActionRequest.ADD_REF_TO_GALLERY
             if notify:
                 rq |= ActionRequest.NOTIFY
 
@@ -440,11 +467,6 @@ init -10 python in draw_logic:
             canvas = result.canvas()
             self.draw_all(canvas)
 
-            if self.__end_interact_request:
-                self.__end_interact_request = False
-                disp = self.get_canvas_as_disp(canvas)
-                renpy.end_interaction(disp)
-
             if self.__action_request:
 
                 if self.__action_request & ActionRequest.SAVE:
@@ -457,7 +479,25 @@ init -10 python in draw_logic:
                     if self.__action_request & ActionRequest.NOTIFY:
                         renpy.notify(_("A draw added in gallery."))
 
+                if self.__action_request & ActionRequest.ADD_REF_TO_GALLERY:
+                    self.add_reference_in_gallery(self.reference)
+                    if self.__action_request & ActionRequest.NOTIFY:
+                        renpy.notify(_("A reference added in gallery."))
+
                 self.__action_request = None
+
+            if self.__end_interact_request:
+
+                if isinstance(
+                    self.__end_interact_request,
+                    renpy.display.core.Displayable
+                ):
+                    disp = self.__end_interact_request
+                else:
+                    disp = self.get_canvas_as_disp(canvas)
+
+                self.__end_interact_request = False
+                renpy.end_interaction(disp)
 
             return result
 
@@ -637,77 +677,27 @@ screen _draw_screen(draw_object):
 
     modal True
 
-    default circle_size = draw_logic.Draw._get_size(draw_object.picker)
-
     frame:
-        has hbox
-
+        has vbox
+        xfill True
+        yfill True
         frame:
-            has vbox
-            spacing 10
-
-            frame:
-                has vbox
-                first_spacing 10
-                spacing 5
-                add draw_object.picker:
-                    align (.5, .5)
-
-                frame:
-                    has vbox
-                    label _("Brightness")
-                    bar:
-                        xmaximum circle_size[0]
-                        value FieldValue(
-                            draw_object.picker,
-                            "brightness",
-                            range=2.,
-                            offset=(-1.),
-                            step=.001
-                        )
-
-                frame:
-                    has vbox
-                    label _("Width")
-                    bar:
-                        xmaximum circle_size[0]
-                        value FieldValue(
-                            draw_object,
-                            "width",
-                            range=100,
-                            offset=1,
-                            step=.001
-                        )
-
-            frame:
-                has vbox
-                xminimum circle_size[0]
-                textbutton _("Done"):
-                    action Function(draw_object._disable)
-                textbutton _("Save as .png"):
-                    action Function(draw_object.save, True)
-                textbutton _("Add in gallery"):
-                    action Function(draw_object.add_in_gallery, True)
-                if draw_object.reference:
-                    textbutton (_("Hide reference") if draw_object.reference_switcher else _("Show reference")):
-                        action ToggleField(draw_object, "reference_switcher", True, False)
-
-            frame:
-                has vbox
-                xminimum circle_size[0]
-                textbutton _("Back"):
-                    action Function(draw_object.back)
-                textbutton _("Forward"):
-                    action Function(draw_object.forward)
-
-            frame:
-                has vbox
-                xminimum circle_size[0]
-                textbutton _("Clear all"):
-                    action Function(draw_object.clear_all)
-
-        frame:
-            xfill True
-            yfill True
+            align (.5, .5)
             add draw_object:
                 align (.5, .5)
+        frame:
+            xalign .5
+            has hbox
+            spacing 50
+            textbutton _("Пропустить"):
+                action (
+                    Function(draw_object.add_ref_in_gallery),
+                    Function(draw_object._disable, True)
+                )
+            textbutton _("Закончить"):
+                action (
+                    Function(draw_object.add_in_gallery),
+                    Function(draw_object._disable)
+                )
+            textbutton _("Помощь"):
+                action ToggleField(draw_object, "reference_switcher", True, False)
