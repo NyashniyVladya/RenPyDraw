@@ -16,7 +16,7 @@ init -10 python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 1, 2)
+    VERSION = (1, 1, 3)
 
 
     class _DrawGallery(store.Gallery):
@@ -75,19 +75,6 @@ init -10 python in draw_logic:
                         break
                     _dir = path.dirname(_dir)
 
-        @staticmethod
-        def get_size(disp):
-            disp = Draw._get_displayable(disp)
-            rend = renpy.display.render.render_for_size(
-                disp,
-                renpy.config.screen_width,
-                renpy.config.screen_height,
-                .0,
-                .0
-            )
-            return tuple(map(float, rend.get_size()))
-
-
         def get_buttons(self):
 
             zoom_size = float(renpy.config.screen_width) * .15
@@ -95,7 +82,7 @@ init -10 python in draw_logic:
 
                 disp = button.images[0].displayables[-1]
 
-                w, _h = self.get_size(disp)
+                w, _h = map(float, Draw._get_size(disp))
                 zoom = zoom_size / w
 
                 disp = store.Transform(disp, zoom=zoom)
