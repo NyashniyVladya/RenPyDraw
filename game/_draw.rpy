@@ -16,7 +16,7 @@ init -10 python in draw_logic:
     DRAW_SAVE_NAME = "Draw"
     DRAW_EXT = ".png"
 
-    VERSION = (1, 1, 0)
+    VERSION = (1, 1, 1)
 
 
     class _DrawGallery(store.Gallery):
@@ -150,7 +150,6 @@ init -10 python in draw_logic:
 
         DRAW_BUTTON = 1
 
-
         def __init__(self, background, reference=None, **properties):
 
             super(Draw, self).__init__(**properties)
@@ -178,7 +177,14 @@ init -10 python in draw_logic:
             self.__picker = ColorPicker(self.set_color)
 
         @classmethod
-        def main(cls, background=None, reference=None, **transform_prop):
+        def main(
+            cls,
+            background=None,
+            reference=None,
+            start_width=None,
+            start_color=None,
+            **transform_prop
+        ):
 
             if background is None:
                 background = "#888"
@@ -187,6 +193,10 @@ init -10 python in draw_logic:
                 background = store.Transform(background, **transform_prop)
 
             draw_object = cls(background, reference)
+            if start_width:
+                draw_object.set_width(start_width)
+            if start_color:
+                draw_object.set_color(start_color)
 
             _screen_name = "_draw_screen"
 
